@@ -1,0 +1,11 @@
+/project/project/target/
+/project/target/
+*.class
+
+.idea/
+
+# nano editor can produce these
+*.save
+*.save.1
+*.save.2
+*.save.3
