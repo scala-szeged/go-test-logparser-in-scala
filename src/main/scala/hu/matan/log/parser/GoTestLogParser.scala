@@ -12,9 +12,26 @@ object GoTestLogParser extends JavaTokenParsers {
     val file = args.headOption.getOrElse(defaultFile)
     val input = Source.fromFile(file).bufferedReader()
     val result = parse(input)
+
     result foreach println
+
     println
     println(result.size)
+
+    println
+    result.groupBy(_.file).map {
+      case (file, list) => (file, list.map(_.line))
+    }.foreach(println)
+
+    println
+    result.filterNot(_.message.startsWith("expected")).groupBy(_.message).map {
+      case (message, list) => (message, list.map(et => s"${et.file}.go:${et.line}"))
+    }.toList.sortBy(_._1).reverse.foreach {
+      case (message, fileLineList) =>
+        println
+        println(message)
+        fileLineList.distinct.foreach(println)
+    }
   }
 
   override protected val whiteSpace = """[ \t]+""".r
