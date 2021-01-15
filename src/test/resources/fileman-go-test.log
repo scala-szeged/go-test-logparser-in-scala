@@ -1,0 +1,80 @@
+GOROOT=/usr/local/Cellar/go@1.14/1.14.13/libexec #gosetup
+GOPATH=/Users/janosseteny/go #gosetup
+/usr/local/Cellar/go@1.14/1.14.13/libexec/bin/go test -json ./...
+=== RUN   Test_FindPath
+=== RUN   Test_FindPath/aTT
+    find_path_test.go:24:
+        	Error Trace:	find_path_test.go:24
+        	Error:      	elements differ
+
+        	            	extra elements in list A:
+        	            	([]interface {}) (len=5) {
+        	            	 (string) (len=5) ".idea",
+        	            	 (string) (len=16) ".idea/.gitignore",
+        	            	 (string) (len=17) ".idea/fileman.iml",
+        	            	 (string) (len=17) ".idea/modules.xml",
+        	            	 (string) (len=19) ".idea/workspace.xml"
+        	            	}
+
+
+        	            	listA:
+        	            	([]string) (len=5) {
+        	            	 (string) (len=5) ".idea",
+        	            	 (string) (len=16) ".idea/.gitignore",
+        	            	 (string) (len=17) ".idea/fileman.iml",
+        	            	 (string) (len=17) ".idea/modules.xml",
+        	            	 (string) (len=19) ".idea/workspace.xml"
+        	            	}
+
+
+        	            	listB:
+        	            	([]string) {
+        	            	}
+        	Test:       	Test_FindPath/aTT
+=== RUN   Test_FindPath/o
+=== RUN   Test_FindPath/a/o
+=== RUN   Test_FindPath/go
+    find_path_test.go:24:
+        	Error Trace:	find_path_test.go:24
+        	Error:      	elements differ
+
+        	            	extra elements in list A:
+        	            	([]interface {}) (len=1) {
+        	            	 (string) (len=8) "go.modZZ"
+        	            	}
+
+
+        	            	extra elements in list B:
+        	            	([]interface {}) (len=1) {
+        	            	 (string) (len=6) "go.mod"
+        	            	}
+
+
+        	            	listA:
+        	            	([]string) (len=3) {
+        	            	 (string) (len=5) "cd.go",
+        	            	 (string) (len=10) "cd_test.go",
+        	            	 (string) (len=8) "go.modZZ"
+        	            	}
+
+
+        	            	listB:
+        	            	([]string) (len=3) {
+        	            	 (string) (len=5) "cd.go",
+        	            	 (string) (len=10) "cd_test.go",
+        	            	 (string) (len=6) "go.mod"
+        	            	}
+        	Test:       	Test_FindPath/go
+--- FAIL: Test_FindPath (0.00s)
+    --- FAIL: Test_FindPath/aTT (0.00s)
+
+    --- PASS: Test_FindPath/o (0.00s)
+    --- PASS: Test_FindPath/a/o (0.00s)
+    --- FAIL: Test_FindPath/go (0.00s)
+
+
+FAIL
+FAIL	fileman	0.525s
+
+Process finished with exit code 1
+
