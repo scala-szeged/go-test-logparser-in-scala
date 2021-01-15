@@ -1,6 +1,9 @@
 /project/project/target/
 /project/target/
+/target
 *.class
+
+.bsp/
 
 .idea/
 
