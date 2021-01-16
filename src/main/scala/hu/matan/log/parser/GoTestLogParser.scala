@@ -2,6 +2,7 @@ package hu.matan.log.parser
 
 import scala.collection.immutable.List
 import scala.io.Source
+import scala.util.matching.Regex
 import scala.util.parsing.combinator.JavaTokenParsers
 
 object GoTestLogParser extends JavaTokenParsers {
@@ -16,7 +17,7 @@ object GoTestLogParser extends JavaTokenParsers {
     result foreach println
 
     println
-    println(result.size)
+    println(s"Number of failing asserts: ${result.size}")
 
     println
     result.groupBy(_.file).map {
@@ -34,32 +35,32 @@ object GoTestLogParser extends JavaTokenParsers {
     }
   }
 
-  override protected val whiteSpace = """[ \t]+""".r
+  override protected val whiteSpace: Regex = """[ \t]+""".r
 
-  def fileContent = repsep(line, endOfLine) ^^ {
+  def failingAsserts: Parser[List[ErrorTrace]] = repsep(line, endOfLine) ^^ {
     list => list.collect { case et: ErrorTrace => et }
   }
 
-  def line = errorWithTrace | notErrorTrace | emptyLine
+  def line: Parser[Any] = errorWithTrace | notErrorTrace | emptyLine
 
-  def errorWithTrace = errorTrace ~ endOfLine ~ error ~ endOfLine ~ notErrorTrace ^^ {
+  def errorWithTrace: Parser[ErrorTrace] = errorTrace ~ endOfLine ~ error ~ endOfLine ~ notErrorTrace ^^ {
     case et ~ _ ~ e ~ _ ~ m => et.copy(error = e, message = m)
   }
 
-  def errorTrace = "Error Trace:" ~> ident ~ ".go:" ~ decimalNumber ^^ {
+  def errorTrace: Parser[ErrorTrace] = "Error Trace:" ~> ident ~ ".go:" ~ decimalNumber ^^ {
     case file ~ _ ~ line => ErrorTrace(file, line.toInt, null, null)
   }
 
-  def error = "Error:" ~> "[^ ]([^ :]| )*".r <~ ":"
+  def error: Parser[String] = "Error:" ~> "[^ ]([^ :]| )*".r <~ ":"
 
 
-  def notErrorTrace = ".+".r
+  def notErrorTrace: Regex = ".+".r
 
   def emptyLine = ""
 
   def endOfLine = "\n"
 
-  def parse(source: java.io.Reader): List[ErrorTrace] = parseAll(fileContent, source) match {
+  def parse(source: java.io.Reader): List[ErrorTrace] = parseAll(failingAsserts, source) match {
     case Success(expression, _) => expression
     case NoSuccess(err, next) => throw new IllegalArgumentException("failed to parse " +
       "(line " + next.pos.line + ", column " + next.pos.column + "):\n" +
