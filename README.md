@@ -14,7 +14,7 @@ Please see the main function doing the above mentioned analisys.
     result foreach println
 
     println
-    println(result.size)
+    println(s"Number of failing asserts: ${result.size}")
 
     println
     result.groupBy(_.file).map {
