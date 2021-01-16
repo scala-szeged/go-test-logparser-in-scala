@@ -1,39 +1,64 @@
-# logparser
+# go test logparser in scala
 
-Log parser in Scala for ant build results, log4j and logback
+It parses the output of `go test` and gives back the list of errors in the orignal order, groupped by file and grouped by message.
 
-Please see https://codeship.com/projects/60759 for continous integration.
+Please see the main function doing the above mentioned analisys.
+```scala
+  def main(args: Array[String]): Unit = {
+
+    val defaultFile = "src/test/resources/fileman-go-test.log"
+    val file = args.headOption.getOrElse(defaultFile)
+    val input = Source.fromFile(file).bufferedReader()
+    val result = parse(input)
+
+    result foreach println
+
+    println
+    println(s"Number of failing asserts: ${result.size}")
+
+    println
+    result.groupBy(_.file).map {
+      case (file, list) => (file, list.map(_.line))
+    }.foreach(println)
+
+    println
+    result.filterNot(_.message.startsWith("expected")).groupBy(_.message).map {
+      case (message, list) => (message, list.map(et => s"${et.file}.go:${et.line}"))
+    }.toList.sortBy(_._1).reverse.foreach {
+      case (message, fileLineList) =>
+        println
+        println(message)
+        fileLineList.distinct.foreach(println)
+    }
+  }
+```
+---
+
+Also see the simplicity of the grammar I have so far. (It is mostly in Bachus Naur Form, BNF for short.)
 
 ```scala
-val input = " [java] 15:13:29, INFO, , d.c.o.d.internal.DBAssistent - Processing global schema 'globalschema'."
-val result = Log4JParser.parse(input)
+  override protected val whiteSpace = """[ \t]+""".r
 
-result must be_===(List(LogLine(
-  channel = "java",
-  time = "15:13:29",
-  category = "INFO",
-  rest = ", d.c.o.d.internal.DBAssistent - Processing global schema 'globalschema'."
-)))
+  def fileContent = repsep(line, endOfLine) ^^ {
+    list => list.collect { case et: ErrorTrace => et }
+  }
 
-...
+  def line = errorWithTrace | notErrorTrace | emptyLine
 
-val input = " [java] \tat org.springframework.jdbc.datasource.DataSourceUtils.getConnection(DataSourceUtils.java:80) ~[org.springframework.jdbc_3.0.5.RELEASE.jar:3.0.5.RELEASE]"
-val result = Log4JParser.parse(input)
+  def errorWithTrace = errorTrace ~ endOfLine ~ error ~ endOfLine ~ notErrorTrace ^^ {
+    case et ~ _ ~ e ~ _ ~ m => et.copy(error = e, message = m)
+  }
 
-result must be_===(List(StackTraceLine(
-  channel = "java",
-  Pcmfl(
-    `package` = "org.springframework.jdbc.datasource",
-    `class` = "DataSourceUtils",
-    method = "getConnection",
-    file = Some("DataSourceUtils.java"),
-    line = Some(80),
-    isNative = false,
-    isUnknownSource = false
-  ),
-  jar = Some("org.springframework.jdbc_3.0.5.RELEASE.jar:3.0.5.RELEASE")
-)))
+  def errorTrace = "Error Trace:" ~> ident ~ ".go:" ~ decimalNumber ^^ {
+    case file ~ _ ~ line => ErrorTrace(file, line.toInt, null, null)
+  }
 
+  def error = "Error:" ~> "[^ ]([^ :]| )*".r <~ ":"
+
+
+  def notErrorTrace = ".+".r
+
+  def emptyLine = ""
+
+  def endOfLine = "\n"
 ```
-
-Please see https://github.com/jseteny/logparser/blob/master/src/test/scala/hu/matan/log/parser/LogParserSpec.scala
