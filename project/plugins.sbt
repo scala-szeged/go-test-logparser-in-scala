@@ -1,3 +1,3 @@
 logLevel := Level.Warn
 
-addSbtPlugin("org.scala-native" % "sbt-scala-native" % "0.3.9")
+addSbtPlugin("org.scala-native" % "sbt-scala-native" % "0.4.0-M2")
