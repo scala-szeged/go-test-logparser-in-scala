@@ -1,6 +1,5 @@
 package hu.matan.log.parser
 
-import scala.collection.immutable.List
 import scala.io.Source
 import scala.util.matching.Regex
 import scala.util.parsing.combinator.JavaTokenParsers
@@ -12,9 +11,15 @@ object GoTestLogParser extends JavaTokenParsers {
     val defaultFile = "src/test/resources/fileman-go-test.log"
     val file = args.headOption.getOrElse(defaultFile)
     val input = Source.fromFile(file).bufferedReader()
-    val result = parse(input)
+    val r = parse(input)
 
-    result foreach println
+    case class ErrorTraceInSection(file: String, line: Int, error: String, message: String, section: Section)
+    def loop(parent: Section)(acc: List[ErrorTraceInSection], entity: Entity): List[ErrorTraceInSection] = entity match {
+      case section: Section => section.entites.foldLeft(acc)(loop(section))
+      case head: ErrorTrace => ErrorTraceInSection(head.file, head.line, head.error, head.message, parent) :: acc
+    }
+
+    val result = r.foldLeft(List.empty[ErrorTraceInSection])(loop(null))
 
     println
     println(s"Number of failing asserts: ${result.size}")
@@ -26,45 +31,78 @@ object GoTestLogParser extends JavaTokenParsers {
 
     println
     result.filterNot(_.message.startsWith("expected")).groupBy(_.message).map {
-      case (message, list) => (message, list.map(et => s"${et.file}.go:${et.line}"))
+      case (message, list) => (message, list.map(et => s"${et.file}:${et.line} ${et.section.testID.mkString("/")}"))
     }.toList.sortBy(_._1).reverse.foreach {
       case (message, fileLineList) =>
         println
         println(message)
         fileLineList.distinct.foreach(println)
     }
+
+    // Todo: 2 word-clouds about what is failed and what is succeeded
   }
 
   override protected val whiteSpace: Regex = """[ \t]+""".r
+  val fail = "--- FAIL:"
+  val pass = "--- PASS:"
 
-  def failingAsserts: Parser[List[ErrorTrace]] = repsep(line, endOfLine) ^^ {
-    list => list.collect { case et: ErrorTrace => et }
+
+  def failingAsserts: Parser[List[Entity]] = repsep(line, endOfLine) ^^ { list =>
+    list.collect {
+      case et: ErrorTrace => et
+      case section: Section => section
+    }
   }
 
-  def line: Parser[Any] = errorWithTrace | notErrorTrace | emptyLine
+  override def ident: GoTestLogParser.Parser[String] = "[a-zA-Z0-9_#',.=$-]+".r
+
+  def line: Parser[Any] = section | errorWithTrace | notErrorTrace | emptyLine
+
+
+  def section = header("=== RUN") ~ failingAsserts ~ footer ^^ {
+    case testID ~ parts ~ footer => Section(testID, parts, footer._2)
+  }
+
+  // header("=== RUN" ) // === RUN   Test_ModelSuite/TestFindUnscheduledTaskByTags
+  def header(tag: String) = tag ~> repsep(ident, "/") <~ endOfLine
+
+  def footer: Parser[(List[String], Double)] = {
+    footer(fail) | footer(pass)
+  }
+
+  // footer("--- FAIL:") // --- FAIL: Test_ModelSuite/TestFindUnscheduledTaskByTags (0.09s)
+  // footer("--- PASS:") // --- PASS: TestRemoteAccessSuite/TestRenderScriptToTempFile (0.05s)
+  def footer(tag: String) = tag ~> repsep(ident, "/") ~ "(" ~ floatingPointNumber <~ "s)" ^^ {
+    case list ~ _ ~ seconds => (list, seconds.toDouble)
+  }
 
   def errorWithTrace: Parser[ErrorTrace] = errorTrace ~ endOfLine ~ error ~ endOfLine ~ notErrorTrace ^^ {
     case et ~ _ ~ e ~ _ ~ m => et.copy(error = e, message = m)
   }
 
-  def errorTrace: Parser[ErrorTrace] = "Error Trace:" ~> ident ~ ".go:" ~ decimalNumber ^^ {
+  def errorTrace: Parser[ErrorTrace] = "Error Trace:" ~> ident ~ ":" ~ decimalNumber ^^ {
     case file ~ _ ~ line => ErrorTrace(file, line.toInt, null, null)
   }
 
   def error: Parser[String] = "Error:" ~> "[^ ]([^ :]| )*".r <~ ":"
 
 
-  def notErrorTrace: Regex = ".+".r
+  def notErrorTrace = ".+".r ^? { case line if !line.contains(fail) && !line.contains(pass) => line }
 
   def emptyLine = ""
 
   def endOfLine = "\n"
 
-  def parse(source: java.io.Reader): List[ErrorTrace] = parseAll(failingAsserts, source) match {
+  def parse(source: java.io.Reader): List[Entity] = parseAll(failingAsserts, source) match {
     case Success(expression, _) => expression
     case NoSuccess(err, next) => throw new IllegalArgumentException("failed to parse " +
       "(line " + next.pos.line + ", column " + next.pos.column + "):\n" +
       err + "\n" + next.pos.longString)
+  }
+
+  def parse(source: String): List[Entity] = parseAll(failingAsserts, source) match {
+    case Success(expression, _) => expression
+    case f: NoSuccess => throw new IllegalArgumentException(f.msg)
   }
 
   def parseChunk[T](p: Parser[T], in: java.lang.CharSequence): T = parseAll(p, in) match {
@@ -73,4 +111,8 @@ object GoTestLogParser extends JavaTokenParsers {
   }
 }
 
-case class ErrorTrace(file: String, line: Int, error: String, message: String)
+sealed trait Entity
+
+case class Section(testID: List[String], entites: List[Entity], duration: Double) extends Entity
+
+case class ErrorTrace(file: String, line: Int, error: String, message: String) extends Entity
