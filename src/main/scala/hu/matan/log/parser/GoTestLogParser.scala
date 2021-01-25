@@ -54,7 +54,7 @@ object GoTestLogParser extends JavaTokenParsers {
     }
   }
 
-  override def ident: GoTestLogParser.Parser[String] = "[a-zA-Z0-9_#',.=$-]+".r
+  override def ident: Parser[String] = "[a-zA-Z0-9_#',.=$-]+".r
 
   def line: Parser[Any] = section | errorWithTrace | notErrorTrace | emptyLine
 
