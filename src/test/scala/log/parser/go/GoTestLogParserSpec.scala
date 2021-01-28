@@ -1,4 +1,4 @@
-package hu.matan.log.parser
+package log.parser.go
 
 import org.specs2.mutable._
 

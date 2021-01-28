@@ -30,22 +30,27 @@ Please see the main function doing the above mentioned analisys.
         println(message)
         fileLineList.distinct.foreach(println)
     }
-  }
+}
 ```
+
 ---
 
-Also see the simplicity of the grammar I have so far. (It is mostly in Bachus Naur Form, BNF for short.)
+Also see the simplicity of the grammar below. It parses all the information except the name of the tests. The grammar
+below is mostly in Backus Naur Form, BNF for short.
+
+If you are curious about the parsing of the name of the tests, please see the
+actual [implementation](src/main/scala/log/parser/go/GoTestLogParser.scala).
 
 ```scala
   override protected val whiteSpace = """[ \t]+""".r
 
-  def fileContent = repsep(line, endOfLine) ^^ {
-    list => list.collect { case et: ErrorTrace => et }
-  }
+def fileContent = repsep(line, endOfLine) ^^ {
+  list => list.collect { case et: ErrorTrace => et }
+}
 
-  def line = errorWithTrace | notErrorTrace | emptyLine
+def line = errorWithTrace | notErrorTrace | emptyLine
 
-  def errorWithTrace = errorTrace ~ endOfLine ~ error ~ endOfLine ~ notErrorTrace ^^ {
+def errorWithTrace = errorTrace ~ endOfLine ~ error ~ endOfLine ~ notErrorTrace ^^ {
     case et ~ _ ~ e ~ _ ~ m => et.copy(error = e, message = m)
   }
 

@@ -1,8 +1,18 @@
-package hu.matan.log.parser
+package log.parser.go
 
 import scala.io.Source
 import scala.util.matching.Regex
 import scala.util.parsing.combinator.JavaTokenParsers
+
+
+sealed trait Entity
+
+case class Section(testID: List[String], entites: List[Entity], duration: Double) extends Entity
+
+case class ErrorTrace(file: String, line: Int, error: String, message: String) extends Entity
+
+case class ErrorTraceInSection(file: String, line: Int, error: String, message: String, section: Section)
+
 
 object GoTestLogParser extends JavaTokenParsers {
 
@@ -13,7 +23,6 @@ object GoTestLogParser extends JavaTokenParsers {
     val input = Source.fromFile(file).bufferedReader()
     val r = parse(input)
 
-    case class ErrorTraceInSection(file: String, line: Int, error: String, message: String, section: Section)
     def loop(parent: Section)(acc: List[ErrorTraceInSection], entity: Entity): List[ErrorTraceInSection] = entity match {
       case section: Section => section.entites.foldLeft(acc)(loop(section))
       case head: ErrorTrace => ErrorTraceInSection(head.file, head.line, head.error, head.message, parent) :: acc
@@ -56,6 +65,7 @@ object GoTestLogParser extends JavaTokenParsers {
 
   override def ident: Parser[String] = "[a-zA-Z0-9_#',.=$-]+".r
 
+
   def line: Parser[Any] = section | errorWithTrace | notErrorTrace | emptyLine
 
 
@@ -86,7 +96,6 @@ object GoTestLogParser extends JavaTokenParsers {
 
   def error: Parser[String] = "Error:" ~> "[^ ]([^ :]| )*".r <~ ":"
 
-
   def notErrorTrace = ".+".r ^? { case line if !line.contains(fail) && !line.contains(pass) => line }
 
   def emptyLine = ""
@@ -110,9 +119,3 @@ object GoTestLogParser extends JavaTokenParsers {
     case f: NoSuccess => throw new IllegalArgumentException(f.msg)
   }
 }
-
-sealed trait Entity
-
-case class Section(testID: List[String], entites: List[Entity], duration: Double) extends Entity
-
-case class ErrorTrace(file: String, line: Int, error: String, message: String) extends Entity
