@@ -35,12 +35,18 @@ object GoTestLogParser extends JavaTokenParsers {
 
     println
     result.groupBy(_.file).map {
-      case (file, list) => (file, list.map(_.line))
+      case (file, list) => (file, list.map(_.line).distinct)
     }.foreach(println)
 
     println
     result.filterNot(_.message.startsWith("expected")).groupBy(_.message).map {
-      case (message, list) => (message, list.map(et => s"${et.file}:${et.line} ${et.section.testID.mkString("/")}"))
+      case (message, list) =>
+        (
+          message,
+          list
+            .sortBy(et => f"${et.file}:${et.line}%07d")
+            .map(et => s"${et.file}:${et.line} ${et.section.testID.mkString("/")}")
+        )
     }.toList.sortBy(_._1).reverse.foreach {
       case (message, fileLineList) =>
         println
